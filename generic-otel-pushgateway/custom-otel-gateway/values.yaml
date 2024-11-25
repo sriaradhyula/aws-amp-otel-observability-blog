@@ -1,0 +1,94 @@
+opentelemetry-collector:
+  mode: deployment
+
+  config:
+    extensions:
+      oidc:
+        issuer_url: https://int-id.cisco.com/oauth2/default
+        audience: "api://default"
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+      memory_ballast: {}
+      sigv4auth:
+        region: us-east-2
+        assume_role:
+          # IAM role in eticloud account which grants permission to write metrics to AMP
+          arn: "arn:aws:iam::626007623524:role/comn-dev-use2-1-AssumeRole"
+          sts_region: "us-east-2"
+
+    exporters:
+      prometheusremotewrite:
+        auth:
+          authenticator: sigv4auth
+        endpoint: https://aps-workspaces.us-east-2.amazonaws.com/workspaces/ws-16dd811f-41ca-4fed-a5d7-b657a075fd06/api/v1/remote_write
+
+    receivers:
+      jaeger: {}
+      otlp:
+        protocols:
+          http:
+            auth:
+              authenticator: oidc
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: opentelemetry-collector
+              scrape_interval: 10s
+              static_configs:
+                - targets: []
+
+    processors:
+      attributes/shipper:
+        actions:
+          - key: etip_source_cluster
+            value: eks-obs-3
+            action: upsert
+
+    service:
+      extensions:
+        - health_check
+        - memory_ballast
+        - oidc
+        - sigv4auth
+
+      pipelines:
+        metrics:
+          exporters:
+            - prometheusremotewrite
+
+      telemetry:
+        metrics:
+          address: ":8888"
+
+  ingress:
+    enabled: true
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt
+    ingressClassName: nginx
+    hosts:
+      - host: opentelemetry.dev.eticloud.io
+        paths:
+          - path: /
+            pathType: Prefix
+            port: 4318
+    tls:
+      - secretName: otel-gateway-tls
+        hosts:
+          - opentelemetry.dev.eticloud.io
+
+  serviceAccount:
+    annotations:
+      # IAM role in EKS cluster's AWS account that allows sigv4 extension to assume role in eticloud account
+      eks.amazonaws.com/role-arn: arn:aws:iam::471112537430:role/comn-dev-use2-1-AMPIngestRole
+
+  ports:
+    metrics:
+      enabled: true
+
+  serviceMonitor:
+    enabled: true
+    metricsEndpoints:
+      - port: metrics
+        interval: 15s
+    extraLabels:
+      prometheus: default
