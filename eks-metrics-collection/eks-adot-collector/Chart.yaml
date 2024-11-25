@@ -1,0 +1,6 @@
+apiVersion: v2
+name: aws-otel-collector
+version: 0.41.1
+description: AWS Distro for OpenTelemetry Helm chart for Kubernetes
+type: application
+appVersion: v0.41.1

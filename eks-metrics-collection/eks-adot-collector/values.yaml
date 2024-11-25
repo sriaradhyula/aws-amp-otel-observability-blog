@@ -1,0 +1,48 @@
+config:
+  receivers:
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: kubernetes-service-endpoints
+            kubernetes_sd_configs:
+              - role: endpoints
+            metrics_path: /metrics
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_endpoint_port_name]
+                action: keep
+                regex: .*
+          - job_name: "blackbox-prod"
+            metrics_path: "/probe"
+            params:
+              module: [http_2xx]
+            static_configs:
+              - targets:
+                  - "https://ciscodesignpartners.com"
+                  - "https://research.cisco.com"
+                  - "https://outshift.cisco.com"
+            relabel_configs:
+              - source_labels: [__address__]
+                target_label: __param_target
+              - source_labels: [__param_target]
+                target_label: instance
+              - target_label: __address__
+                replacement: prod-use2-1-kube-prometheus-stack-prometheus-blackbox-expo.kube-prometheus-stack.svc:9115
+  processors:
+    attributes/shipper:
+      actions:
+        - key: etip_source_cluster
+          # this value should be the EKS cluster name
+          value: prod-use2-1
+          action: upsert
+  extensions:
+    sigv4auth:
+      region: us-east-2
+      assume_role:
+        arn: "arn:aws:iam::xxxxxxxx:role/prod-use2-1-AssumeRole"
+        sts_region: "us-east-2"
+
+serviceAccount:
+# Validate this is current, only for Amazon Managed Prometheus implementations
+  annotations:
+    # this value should include the EKS cluster name
+    eks.amazonaws.com/role-arn: arn:aws:iam::xxxxxxxx:role/prod-use2-1-AMPIngestRole
