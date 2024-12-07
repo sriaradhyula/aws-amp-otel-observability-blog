@@ -4,7 +4,7 @@ opentelemetry-collector:
   config:
     extensions:
       oidc:
-        issuer_url: https://int-id.cisco.com/oauth2/default
+        issuer_url: https://cognito-idp.us-east-2.amazonaws.com/us-east-2_XXXXXX # Replace with your Cognito User Pool ID
         audience: "api://default"
       health_check:
         endpoint: ${env:MY_POD_IP}:13133
@@ -12,15 +12,15 @@ opentelemetry-collector:
       sigv4auth:
         region: us-east-2
         assume_role:
-          # IAM role in eticloud account which grants permission to write metrics to AMP
-          arn: "arn:aws:iam::626007623524:role/comn-dev-use2-1-AssumeRole"
+          # IAM role in your AWS account which grants permission to write metrics to AMP
+          arn: "arn:aws:iam::XXXXX:role/amp-ingest-role" # Replace with your AMP Ingest Role ARN
           sts_region: "us-east-2"
 
     exporters:
       prometheusremotewrite:
         auth:
           authenticator: sigv4auth
-        endpoint: https://aps-workspaces.us-east-2.amazonaws.com/workspaces/ws-16dd811f-41ca-4fed-a5d7-b657a075fd06/api/v1/remote_write
+        endpoint: https://aps-workspaces.us-east-2.amazonaws.com/workspaces/ws-xxxxxx/api/v1/remote_write # Replace with your AMP Remote Write URL
 
     receivers:
       jaeger: {}
@@ -41,7 +41,7 @@ opentelemetry-collector:
       attributes/shipper:
         actions:
           - key: etip_source_cluster
-            value: eks-obs-3
+            value: custom-onprem-otel-gateway # Replace with your source cluster name
             action: upsert
 
     service:
@@ -66,7 +66,7 @@ opentelemetry-collector:
       cert-manager.io/cluster-issuer: letsencrypt
     ingressClassName: nginx
     hosts:
-      - host: opentelemetry.dev.eticloud.io
+      - host: custom-otel-pushgateway.example.com # Replace with your custom domain
         paths:
           - path: /
             pathType: Prefix
@@ -74,12 +74,12 @@ opentelemetry-collector:
     tls:
       - secretName: otel-gateway-tls
         hosts:
-          - opentelemetry.dev.eticloud.io
+          - custom-otel-pushgateway.example.com # Replace with your custom domain
 
   serviceAccount:
     annotations:
-      # IAM role in EKS cluster's AWS account that allows sigv4 extension to assume role in eticloud account
-      eks.amazonaws.com/role-arn: arn:aws:iam::471112537430:role/comn-dev-use2-1-AMPIngestRole
+      # IAM role in EKS cluster's AWS account that allows sigv4 extension to assume role in your AWS account
+      eks.amazonaws.com/role-arn: "arn:aws:iam::XXXXX:role/amp-ingest-role" # Replace with your AMP Ingest Role ARN
 
   ports:
     metrics:

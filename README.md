@@ -38,6 +38,10 @@ kube-system   kube-proxy-5hwmf           1/1     Running   0          60m
 kube-system   kube-proxy-987h9           1/1     Running   0          60m
 ```
 
+## Collect Metrics using ADOT Collector and push them to AMP
+
+![](docs/eks-adot-collector-to-amp.svg)
+
 ### Create an Amazon Managed Prometheus (AMP) Instance
 
 ```
@@ -56,12 +60,42 @@ Sample Output:
 }
 ```
 
+### Install Sample Web App to scrape Prometheus Metrics
 
-## Collect Metrics using ADOT Collector and push them to AMP
+Reference: https://github.com/aws-observability/aws-otel-community/tree/master/sample-apps/prometheus-sample-app
 
-![](docs/eks-adot-collector-to-amp.svg)
+
 
 
 ## Send Metrics from non-EKS systems like CI (Jenkins/GitHub Actions) to custom OTel Gateway and push them to AMP
 
 ![](docs/generic-otel-push-gateway-to-amp.svg)
+
+### [Create AWS Cognito OIDC User Pool](generic-otel-pushgateway/1-create-aws-cognito-oidc-user-pool/README.md)
+
+### Install Custom OTel Gateway HTTP Endpoint on EKS
+
+```
+cd 2-custom-otel-gateway-on-eks
+```
+
+```
+helm install custom-otel-gateway --namespace custom-otel-gateway .
+```
+
+### Test with Python Client
+
+```
+cd 3-otel-python-client
+```
+
+```
+export SERVICE_NAME="custom_onprem_otel_metric"
+export USER_POOL_DOMAIN="xxx" # Your Cognito Domain from step 1
+export CLIENT_ID="xxx" # Your Cognito Pool Client ID from step 1
+export CLIENT_SECRET="xxx" # Your Cognito Pool Client Secret from step 1
+```
+
+```
+python otel-python-client.py --service_name "jenkins-ci-metrics" --instrument_name "job-ci-success" --instrument_kind "counter" --measurement_value "1.0" --instrument_description "Jenkins Job CI Success Metrics"
+```
